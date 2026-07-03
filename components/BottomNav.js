@@ -3,7 +3,7 @@
 export default function BottomNav({ active = "home" }) {
   const items = [
     { key: "home", label: "홈", icon: "⌂", href: "/" },
-    { key: "rankings", label: "지역순위", icon: "◎", href: "/rankings" },
+    { key: "board", label: "퇴근방", icon: "✎", href: "/board" },
     { key: "simulator", label: "퇴사", icon: "▣", href: "/simulator" },
     { key: "stats", label: "통계", icon: "▥", href: "/stats" },
     { key: "my", label: "마이", icon: "○", href: "/my" },

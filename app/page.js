@@ -30,11 +30,14 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
 
   const fetchStats = async () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
     const { data, error } = await supabase
       .from("moods")
       .select("score, region, created_at")
-      .order("created_at", { ascending: false })
-      .limit(1000);
+      .gte("created_at", today.toISOString())
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error("통계 조회 실패:", error);
@@ -192,7 +195,7 @@ export default function Home() {
           </div>
 
           <p style={styles.countText}>
-            현재 {count.toLocaleString()}명 참여 · 익명 저장
+            오늘 {count.toLocaleString()}명 참여 · 익명 저장
           </p>
         </section>
 

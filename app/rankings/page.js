@@ -1,10 +1,87 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../../lib/supabase";
 import { regions } from "../../lib/data";
 import AppHeader from "../../components/AppHeader";
 import BottomNav from "../../components/BottomNav";
 
 export default function RankingsPage() {
+  const [records, setRecords] = useState([]);
+
+  const fetchRankings = async () => {
+    const { data, error } = await supabase
+      .from("moods")
+      .select("score, region, created_at")
+      .not("region", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(3000);
+
+    if (error) {
+      console.error("지역 순위 조회 실패:", error);
+      return;
+    }
+
+    setRecords(data || []);
+  };
+
+  useEffect(() => {
+    fetchRankings();
+  }, []);
+
+  const ranking = useMemo(() => {
+    const grouped = {};
+
+    records.forEach((item) => {
+      if (!item.region) return;
+
+      if (!grouped[item.region]) {
+        grouped[item.region] = {
+          name: item.region,
+          total: 0,
+          count: 0,
+        };
+      }
+
+      grouped[item.region].total += item.score;
+      grouped[item.region].count += 1;
+    });
+
+    return Object.values(grouped)
+      .map((item) => ({
+        name: item.name,
+        score: Math.round(item.total / item.count),
+        count: item.count,
+      }))
+      .sort((a, b) => b.score - a.score);
+  }, [records]);
+
+  const displayRanking = ranking.length > 0 ? ranking : regions;
+
+  const getStatus = (score) => {
+    if (score >= 90) return "멘탈 붕괴";
+    if (score >= 80) return "퇴사욕구 위험";
+    if (score >= 70) return "상당히 높음";
+    if (score >= 60) return "보통";
+    return "아직 괜찮음";
+  };
+
+  const getEmoji = (score) => {
+    if (score >= 90) return "🤮";
+    if (score >= 80) return "😭";
+    if (score >= 70) return "😐";
+    if (score >= 60) return "🙂";
+    return "😀";
+  };
+
+  const getColor = (score) => {
+    if (score >= 90) return "#ef4444";
+    if (score >= 80) return "#fb7185";
+    if (score >= 70) return "#f97316";
+    if (score >= 60) return "#f59e0b";
+    return "#22c55e";
+  };
+
   return (
     <main style={styles.page}>
       <div style={styles.phone}>
@@ -18,50 +95,67 @@ export default function RankingsPage() {
             제일 싫은 동네는?
           </h1>
           <p style={styles.desc}>
-            현재는 임시 데이터입니다. 다음 단계에서 투표할 때 지역을 함께 저장해서 실시간 순위로 바꿀 수 있습니다.
+            투표 시 선택한 지역을 기준으로 평균 퇴사욕구 점수를 계산합니다.
           </p>
         </section>
 
+        <section style={styles.summaryCard}>
+          <div>
+            <p style={styles.summaryLabel}>집계 지역</p>
+            <strong style={styles.summaryValue}>{ranking.length || regions.length}곳</strong>
+          </div>
+          <div>
+            <p style={styles.summaryLabel}>지역 투표 수</p>
+            <strong style={styles.summaryValue}>{records.length.toLocaleString()}건</strong>
+          </div>
+        </section>
+
         <section style={styles.rankCard}>
-          {regions.map((region, index) => (
-            <div key={region.name} style={styles.rankItem}>
-              <div style={styles.rankLeft}>
-                <span style={index === 0 ? styles.rankNoTop : styles.rankNo}>
-                  {index + 1}
-                </span>
+          {displayRanking.map((region, index) => {
+            const score = region.score;
+            const color = getColor(score);
 
-                <span style={styles.rankEmoji}>{region.emoji}</span>
+            return (
+              <div key={region.name} style={styles.rankItem}>
+                <div style={styles.rankLeft}>
+                  <span style={index === 0 ? styles.rankNoTop : styles.rankNo}>
+                    {index + 1}
+                  </span>
 
-                <div>
-                  <strong style={styles.rankName}>{region.name}</strong>
-                  <p style={styles.rankSub}>
-                    퇴사욕구 {region.score >= 85 ? "위험" : region.score >= 75 ? "높음" : "보통"}
-                  </p>
+                  <span style={styles.rankEmoji}>{region.emoji || getEmoji(score)}</span>
+
+                  <div>
+                    <strong style={styles.rankName}>{region.name}</strong>
+                    <p style={styles.rankSub}>
+                      {getStatus(score)}
+                      {region.count ? ` · ${region.count}명 참여` : ""}
+                    </p>
+                  </div>
+                </div>
+
+                <div style={styles.rankRight}>
+                  <strong style={{ ...styles.rankScore, color }}>
+                    {score}점
+                  </strong>
+                  <div style={styles.rankBarTrack}>
+                    <div
+                      style={{
+                        ...styles.rankBar,
+                        width: `${score}%`,
+                        background: color,
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
-
-              <div style={styles.rankRight}>
-                <strong style={{ ...styles.rankScore, color: region.color }}>
-                  {region.score}점
-                </strong>
-                <div style={styles.rankBarTrack}>
-                  <div
-                    style={{
-                      ...styles.rankBar,
-                      width: `${region.score}%`,
-                      background: region.color,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </section>
 
         <section style={styles.noticeCard}>
-          <h2 style={styles.noticeTitle}>다음 업데이트 예정</h2>
+          <h2 style={styles.noticeTitle}>참고</h2>
           <p style={styles.noticeText}>
-            투표할 때 지역을 선택하게 만들면, 이 순위는 실제 사용자 데이터 기반으로 자동 계산됩니다.
+            기존에 지역 없이 저장된 투표는 지역 순위 계산에서 제외됩니다. 지금부터 새로 저장되는 투표부터 지역 순위에 반영됩니다.
           </p>
         </section>
 
@@ -114,6 +208,25 @@ const styles = {
     fontSize: "14px",
     lineHeight: 1.55,
     fontWeight: 700,
+  },
+  summaryCard: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "10px",
+    marginBottom: "14px",
+  },
+  summaryLabel: {
+    margin: 0,
+    color: "#64748b",
+    fontSize: "12px",
+    fontWeight: 900,
+  },
+  summaryValue: {
+    display: "block",
+    marginTop: "4px",
+    fontSize: "24px",
+    fontWeight: 950,
+    color: "#111827",
   },
   rankCard: {
     background: "#ffffff",

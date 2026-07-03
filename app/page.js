@@ -41,7 +41,7 @@ export default function Home() {
     const { data, error } = await supabase.from("moods").select("score");
 
     if (error) {
-      console.error(error);
+      console.error("통계 조회 실패:", error);
       return;
     }
 
@@ -73,7 +73,7 @@ export default function Home() {
 
     if (error) {
       alert("저장 실패. Supabase 설정을 확인해주세요.");
-      console.error(error);
+      console.error("투표 저장 실패:", error);
       return;
     }
 
@@ -87,6 +87,10 @@ export default function Home() {
     if (score >= 55) return "그럭저럭 버티는 중";
     if (score >= 35) return "아직은 출근 가능";
     return "이 정도면 회사 체질";
+  };
+
+  const goScout = () => {
+    window.open("https://hellomedia.win", "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -139,7 +143,7 @@ export default function Home() {
           </div>
         </div>
 
-        {selectedScore && (
+        {selectedScore !== null && (
           <div style={styles.resultBox}>
             <p style={styles.resultTitle}>투표 완료</p>
             <p style={styles.resultText}>
@@ -155,9 +159,9 @@ export default function Home() {
             경제적 자유를 위한 우량주 탐색도 필요합니다.
           </p>
 
-          https://hellomedia.win
+          <button type="button" onClick={goScout} style={styles.linkButton}>
             우량주 스카우터 보기
-          </a>
+          </button>
         </div>
       </section>
     </main>
@@ -302,8 +306,9 @@ const styles = {
     borderRadius: "999px",
     background: "#111827",
     color: "#ffffff",
-    textDecoration: "none",
+    border: "0",
     fontWeight: 800,
     fontSize: "14px",
+    cursor: "pointer",
   },
 };

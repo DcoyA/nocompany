@@ -2,45 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
-
-const moods = [
-  { emoji: "😀", label: "출근할만함", short: "좋음", score: 20, color: "#22c55e", bg: "#dcfce7" },
-  { emoji: "🙂", label: "그럭저럭", short: "괜찮음", score: 40, color: "#84cc16", bg: "#ecfccb" },
-  { emoji: "😐", label: "귀찮음", short: "보통", score: 60, color: "#f59e0b", bg: "#fef3c7" },
-  { emoji: "😭", label: "가기 싫음", short: "싫음", score: 80, color: "#fb7185", bg: "#ffe4e6" },
-  { emoji: "🤮", label: "죽어도 싫음", short: "매우 싫음", score: 100, color: "#ef4444", bg: "#fee2e2" },
-];
-
-const regions = [
-  { name: "판교", score: 92, emoji: "🤮", color: "#ef4444" },
-  { name: "여의도", score: 88, emoji: "😭", color: "#fb7185" },
-  { name: "강남", score: 84, emoji: "😭", color: "#f97316" },
-  { name: "가산", score: 81, emoji: "😐", color: "#f59e0b" },
-  { name: "성수", score: 76, emoji: "🙂", color: "#84cc16" },
-];
-
-const mapPins = [
-  { name: "판교", score: 92, top: "68%", left: "58%", color: "#111827" },
-  { name: "여의도", score: 88, top: "54%", left: "30%", color: "#fb7185" },
-  { name: "강남", score: 84, top: "61%", left: "47%", color: "#f97316" },
-  { name: "성수", score: 76, top: "41%", left: "62%", color: "#22c55e" },
-  { name: "광화문", score: 68, top: "31%", left: "42%", color: "#84cc16" },
-  { name: "마곡", score: 71, top: "48%", left: "17%", color: "#f59e0b" },
-];
+import { moods, regions, mapPins } from "../lib/data";
+import AppHeader from "../components/AppHeader";
+import BottomNav from "../components/BottomNav";
 
 export default function Home() {
-  const [view, setView] = useState("home");
-
   const [records, setRecords] = useState([]);
   const [average, setAverage] = useState(null);
   const [count, setCount] = useState(0);
   const [selectedScore, setSelectedScore] = useState(null);
   const [loading, setLoading] = useState(false);
-
-  const [salary, setSalary] = useState(3000000);
-  const [cash, setCash] = useState(20000000);
-  const [livingCost, setLivingCost] = useState(2200000);
-  const [debtCost, setDebtCost] = useState(300000);
 
   const fetchStats = async () => {
     const { data, error } = await supabase
@@ -80,7 +51,6 @@ export default function Home() {
 
       return {
         ...mood,
-        count: moodCount,
         percent,
       };
     });
@@ -96,16 +66,6 @@ export default function Home() {
   }, [average]);
 
   const selectedMood = moods.find((mood) => mood.score === selectedScore);
-
-  const monthlyCost = Number(livingCost || 0) + Number(debtCost || 0);
-  const runwayMonths = monthlyCost > 0 ? Number(cash || 0) / monthlyCost : 0;
-  const fullMonths = Math.floor(runwayMonths);
-  const remainDays = Math.floor((runwayMonths - fullMonths) * 30);
-  const totalDays = Math.floor(runwayMonths * 30);
-  const gaugePercent = Math.min(100, Math.round((runwayMonths / 24) * 100));
-  const reducedCost = Math.round(monthlyCost * 0.9);
-  const reducedMonths = reducedCost > 0 ? Number(cash || 0) / reducedCost : 0;
-  const extraDays = Math.max(0, Math.floor((reducedMonths - runwayMonths) * 30));
 
   const vote = async (score) => {
     setLoading(true);
@@ -133,171 +93,20 @@ export default function Home() {
     return "이 정도면 회사 체질";
   };
 
-  const formatWon = (value) => {
-    return Number(value || 0).toLocaleString();
-  };
-
   const goScout = () => {
     window.open("https://hellomedia.win", "_blank", "noopener,noreferrer");
   };
 
-  if (view === "simulator") {
-    return (
-      <main style={styles.page}>
-        <div style={styles.phone}>
-          <header style={styles.header}>
-            <button type="button" onClick={() => setView("home")} style={styles.backButton}>
-              ‹
-            </button>
-
-            <div style={styles.headerTitle}>퇴사 시뮬레이터</div>
-
-            <div style={styles.headerSpace} />
-          </header>
-
-          <section style={styles.simPageIntro}>
-            <p style={styles.simKicker}>NO COMPANY CALCULATOR</p>
-            <h1 style={styles.simTitle}>지금 퇴사하면<br />몇 개월 버틸까?</h1>
-            <p style={styles.simDesc}>
-              현재 현금과 월 고정지출을 기준으로, 월급이 끊긴 뒤 버틸 수 있는 기간을 계산합니다.
-            </p>
-          </section>
-
-          <section style={styles.inputCard}>
-            <h2 style={styles.inputTitle}>현재 상황을 입력해주세요</h2>
-
-            <MoneyInput
-              label="월급 (세후)"
-              value={salary}
-              onChange={setSalary}
-            />
-
-            <MoneyInput
-              label="현재 보유 현금"
-              value={cash}
-              onChange={setCash}
-            />
-
-            <MoneyInput
-              label="월 평균 생활비"
-              value={livingCost}
-              onChange={setLivingCost}
-            />
-
-            <MoneyInput
-              label="대출 / 카드값 (월)"
-              value={debtCost}
-              onChange={setDebtCost}
-            />
-          </section>
-
-          <section style={styles.resultPanel}>
-            <p style={styles.resultSmall}>당신의 퇴사 가능 기간</p>
-
-            <div style={styles.runwayResult}>
-              <span style={styles.partyEmoji}>🎉</span>
-              <strong style={styles.runwayMonths}>
-                {fullMonths}
-                <span>개월</span>
-              </strong>
-              <strong style={styles.runwayDays}>
-                {remainDays}
-                <span>일</span>
-              </strong>
-            </div>
-
-            <p style={styles.totalDaysText}>
-              총 {totalDays.toLocaleString()}일 동안 버틸 수 있어요.
-            </p>
-
-            <div style={styles.gauge}>
-              <div style={styles.gaugeArc}>
-                <div style={{ ...styles.gaugeNeedle, transform: `rotate(${Math.min(90, -70 + gaugePercent * 1.4)}deg)` }} />
-              </div>
-              <div style={styles.gaugeLabels}>
-                <span>위험</span>
-                <span>보통</span>
-                <span>여유</span>
-              </div>
-            </div>
-
-            <div style={styles.summaryBox}>
-              <div>
-                <p>월 고정지출</p>
-                <strong>{formatWon(monthlyCost)}원</strong>
-              </div>
-              <div>
-                <p>월급 대비 지출</p>
-                <strong>
-                  {salary > 0 ? Math.round((monthlyCost / salary) * 100) : 0}%
-                </strong>
-              </div>
-            </div>
-
-            <div style={styles.tipBox}>
-              <strong>TIP.</strong>
-              <p>
-                월 생활비를 10% 줄이면 약 {extraDays.toLocaleString()}일 더 버틸 수 있어요.
-              </p>
-            </div>
-          </section>
-
-          <section style={styles.simScoutCard}>
-            <p style={styles.scoutTitle}>퇴사보다 먼저 현금흐름부터</p>
-            <p style={styles.scoutText}>
-              배당주, ETF, 우량주 후보를 비교해보고 싶다면 우량주 스카우터에서 확인해보세요.
-            </p>
-            <button type="button" onClick={goScout} style={styles.scoutButton}>
-              우량주 스카우터 보기
-            </button>
-          </section>
-
-          <nav style={styles.bottomNav}>
-            <button type="button" onClick={() => setView("home")} style={styles.navItem}>
-              <span>⌂</span>
-              <small>홈</small>
-            </button>
-            <button type="button" style={styles.navItem}>
-              <span>◎</span>
-              <small>지역순위</small>
-            </button>
-            <button type="button" style={styles.navItemActive}>
-              <span>▣</span>
-              <small>퇴사</small>
-            </button>
-            <button type="button" style={styles.navItem}>
-              <span>▥</span>
-              <small>통계</small>
-            </button>
-            <button type="button" style={styles.navItem}>
-              <span>○</span>
-              <small>마이</small>
-            </button>
-          </nav>
-        </div>
-      </main>
-    );
-  }
-
   return (
     <main style={styles.page}>
       <div style={styles.phone}>
-        <header style={styles.header}>
-          <div style={styles.brand}>
-            <div style={styles.logo}>🚨</div>
-            <div>
-              <div style={styles.appName}>회사가기 싫을지도</div>
-              <div style={styles.appSub}>실시간 대한민국 직장인 현황</div>
-            </div>
-          </div>
-
-          <button type="button" style={styles.iconButton}>🔔</button>
-        </header>
+        <AppHeader />
 
         <section style={styles.heroCard}>
           <div style={styles.heroTop}>
             <div>
               <p style={styles.cardLabel}>오늘의 회사가기 싫음 지수</p>
+
               <div style={styles.scoreRow}>
                 <span style={styles.bigEmoji}>{currentMood.emoji}</span>
                 <strong style={styles.mainScore}>
@@ -305,6 +114,7 @@ export default function Home() {
                   <span style={styles.scoreUnit}>점</span>
                 </strong>
               </div>
+
               <p style={styles.moodText}>{getMoodText(average)}</p>
             </div>
 
@@ -332,13 +142,9 @@ export default function Home() {
           </p>
         </section>
 
-        <section style={styles.voteCard}>
-          <div style={styles.sectionHeader}>
-            <div>
-              <h2 style={styles.sectionTitle}>오늘 내 상태 입력</h2>
-              <p style={styles.sectionSub}>3초만에 참여하고 전국 직장인들과 함께해요.</p>
-            </div>
-          </div>
+        <section style={styles.card}>
+          <h2 style={styles.sectionTitle}>오늘 내 상태 입력</h2>
+          <p style={styles.sectionSub}>3초만에 참여하고 전국 직장인들과 함께해요.</p>
 
           <div style={styles.moodGrid}>
             {moods.map((mood) => {
@@ -355,7 +161,6 @@ export default function Home() {
                     background: isSelected ? mood.color : "#f8fafc",
                     color: isSelected ? "#ffffff" : "#111827",
                     borderColor: isSelected ? mood.color : "#eef2f7",
-                    transform: isSelected ? "translateY(-2px)" : "none",
                     opacity: loading ? 0.65 : 1,
                   }}
                 >
@@ -374,27 +179,26 @@ export default function Home() {
                 <p style={styles.resultText}>
                   당신의 오늘 퇴사욕구는 {selectedScore}점입니다.
                 </p>
-                <div style={styles.progressTrack}>
-                  <div
-                    style={{
-                      ...styles.progressBar,
-                      width: `${selectedScore}%`,
-                      background: selectedMood.color,
-                    }}
-                  />
-                </div>
               </div>
             </div>
           )}
         </section>
 
-        <section style={styles.mapCard}>
+        <section style={styles.card}>
           <div style={styles.sectionHeader}>
             <div>
               <h2 style={styles.sectionTitle}>지역별 회사가기 싫음 지수</h2>
               <p style={styles.sectionSub}>지도 API 붙이기 전 임시 지역 대시보드</p>
             </div>
-            <span style={styles.helpIcon}>?</span>
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = "/rankings";
+              }}
+              style={styles.moreButton}
+            >
+              전체보기
+            </button>
           </div>
 
           <div style={styles.fakeMap}>
@@ -420,16 +224,12 @@ export default function Home() {
           </div>
         </section>
 
-        <section style={styles.rankCard}>
-          <div style={styles.sectionHeader}>
-            <div>
-              <h2 style={styles.sectionTitle}>오늘의 TOP 5</h2>
-              <p style={styles.sectionSub}>퇴사욕구 높은 업무지구</p>
-            </div>
-          </div>
+        <section style={styles.card}>
+          <h2 style={styles.sectionTitle}>오늘의 TOP 5</h2>
+          <p style={styles.sectionSub}>퇴사욕구 높은 업무지구</p>
 
           <div style={styles.rankList}>
-            {regions.map((region, index) => (
+            {regions.slice(0, 5).map((region, index) => (
               <div key={region.name} style={styles.rankItem}>
                 <div style={styles.rankLeft}>
                   <span style={styles.rankNo}>{index + 1}</span>
@@ -455,15 +255,19 @@ export default function Home() {
         </section>
 
         <section style={styles.simulatorCard}>
-          <div>
-            <p style={styles.darkLabel}>퇴사 가능할까?</p>
-            <h2 style={styles.darkTitle}>내 통장으로 몇 개월 버틸지 계산해보기</h2>
-            <p style={styles.darkSub}>
-              월급, 현금, 생활비를 입력하면 퇴사 가능 기간을 계산합니다.
-            </p>
-          </div>
+          <p style={styles.darkLabel}>퇴사 가능할까?</p>
+          <h2 style={styles.darkTitle}>내 통장으로 몇 개월 버틸지 계산해보기</h2>
+          <p style={styles.darkSub}>
+            월급, 현금, 생활비를 입력하면 퇴사 가능 기간을 계산합니다.
+          </p>
 
-          <button type="button" onClick={() => setView("simulator")} style={styles.simulatorButton}>
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = "/simulator";
+            }}
+            style={styles.simulatorButton}
+          >
             퇴사 시뮬레이터 시작
           </button>
         </section>
@@ -481,47 +285,9 @@ export default function Home() {
           </button>
         </section>
 
-        <nav style={styles.bottomNav}>
-          <button type="button" style={styles.navItemActive}>
-            <span>⌂</span>
-            <small>홈</small>
-          </button>
-          <button type="button" style={styles.navItem}>
-            <span>◎</span>
-            <small>지역순위</small>
-          </button>
-          <button type="button" onClick={() => setView("simulator")} style={styles.navItem}>
-            <span>▣</span>
-            <small>퇴사</small>
-          </button>
-          <button type="button" style={styles.navItem}>
-            <span>▥</span>
-            <small>통계</small>
-          </button>
-          <button type="button" style={styles.navItem}>
-            <span>○</span>
-            <small>마이</small>
-          </button>
-        </nav>
+        <BottomNav active="home" />
       </div>
     </main>
-  );
-}
-
-function MoneyInput({ label, value, onChange }) {
-  return (
-    <label style={styles.inputRow}>
-      <span style={styles.inputLabel}>{label}</span>
-      <div style={styles.inputBox}>
-        <input
-          type="number"
-          value={value}
-          onChange={(event) => onChange(Number(event.target.value))}
-          style={styles.input}
-        />
-        <span style={styles.won}>원</span>
-      </div>
-    </label>
   );
 }
 
@@ -540,66 +306,6 @@ const styles = {
     maxWidth: "430px",
     minHeight: "100vh",
     paddingBottom: "86px",
-  },
-  header: {
-    height: "58px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: "12px",
-  },
-  brand: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-  },
-  logo: {
-    width: "38px",
-    height: "38px",
-    borderRadius: "14px",
-    background: "#111827",
-    color: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    boxShadow: "0 10px 24px rgba(15, 23, 42, 0.22)",
-  },
-  appName: {
-    fontSize: "18px",
-    fontWeight: 900,
-    letterSpacing: "-0.04em",
-  },
-  appSub: {
-    marginTop: "2px",
-    fontSize: "12px",
-    color: "#64748b",
-    fontWeight: 700,
-  },
-  iconButton: {
-    width: "38px",
-    height: "38px",
-    borderRadius: "14px",
-    border: "1px solid #e5e7eb",
-    background: "rgba(255,255,255,0.8)",
-    boxShadow: "0 8px 20px rgba(15, 23, 42, 0.08)",
-    cursor: "pointer",
-  },
-  backButton: {
-    width: "38px",
-    height: "38px",
-    borderRadius: "14px",
-    border: "1px solid #e5e7eb",
-    background: "#ffffff",
-    fontSize: "31px",
-    lineHeight: 1,
-    cursor: "pointer",
-  },
-  headerTitle: {
-    fontSize: "17px",
-    fontWeight: 950,
-  },
-  headerSpace: {
-    width: "38px",
   },
   heroCard: {
     background: "rgba(255,255,255,0.92)",
@@ -629,7 +335,6 @@ const styles = {
   },
   bigEmoji: {
     fontSize: "54px",
-    filter: "drop-shadow(0 8px 10px rgba(15,23,42,0.14))",
   },
   mainScore: {
     fontSize: "52px",
@@ -640,7 +345,6 @@ const styles = {
   scoreUnit: {
     fontSize: "22px",
     marginLeft: "3px",
-    letterSpacing: "-0.04em",
   },
   moodText: {
     margin: "8px 0 0",
@@ -714,7 +418,7 @@ const styles = {
     fontWeight: 700,
     textAlign: "center",
   },
-  voteCard: {
+  card: {
     background: "#ffffff",
     borderRadius: "28px",
     padding: "20px",
@@ -734,10 +438,20 @@ const styles = {
     letterSpacing: "-0.04em",
   },
   sectionSub: {
-    margin: "5px 0 0",
+    margin: "5px 0 14px",
     fontSize: "12px",
     color: "#64748b",
     fontWeight: 700,
+  },
+  moreButton: {
+    border: "0",
+    borderRadius: "999px",
+    background: "#fff1f2",
+    color: "#f43f5e",
+    padding: "8px 11px",
+    fontSize: "12px",
+    fontWeight: 900,
+    cursor: "pointer",
   },
   moodGrid: {
     display: "grid",
@@ -755,8 +469,6 @@ const styles = {
     gap: "7px",
     fontWeight: 900,
     cursor: "pointer",
-    boxShadow: "0 10px 24px rgba(15, 23, 42, 0.06)",
-    transition: "0.15s ease",
   },
   moodEmoji: {
     fontSize: "31px",
@@ -793,39 +505,10 @@ const styles = {
     fontWeight: 950,
   },
   resultText: {
-    margin: "3px 0 9px",
+    margin: "3px 0 0",
     fontSize: "12px",
     color: "#64748b",
     fontWeight: 700,
-  },
-  progressTrack: {
-    height: "8px",
-    background: "#e5e7eb",
-    borderRadius: "999px",
-    overflow: "hidden",
-  },
-  progressBar: {
-    height: "100%",
-    borderRadius: "999px",
-  },
-  mapCard: {
-    background: "#ffffff",
-    borderRadius: "28px",
-    padding: "20px",
-    boxShadow: "0 18px 46px rgba(15, 23, 42, 0.09)",
-    marginBottom: "14px",
-  },
-  helpIcon: {
-    width: "22px",
-    height: "22px",
-    borderRadius: "999px",
-    background: "#f1f5f9",
-    color: "#94a3b8",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "12px",
-    fontWeight: 900,
   },
   fakeMap: {
     position: "relative",
@@ -878,13 +561,6 @@ const styles = {
     fontSize: "18px",
     fontWeight: 950,
     lineHeight: 1.1,
-  },
-  rankCard: {
-    background: "#ffffff",
-    borderRadius: "28px",
-    padding: "20px",
-    boxShadow: "0 18px 46px rgba(15, 23, 42, 0.09)",
-    marginBottom: "14px",
   },
   rankList: {
     display: "grid",
@@ -1012,219 +688,6 @@ const styles = {
     background: "#111827",
     color: "#ffffff",
     fontSize: "12px",
-    fontWeight: 900,
-    cursor: "pointer",
-  },
-  simPageIntro: {
-    background: "linear-gradient(135deg, #111827 0%, #1f2937 100%)",
-    color: "#ffffff",
-    borderRadius: "30px",
-    padding: "24px",
-    marginBottom: "14px",
-    boxShadow: "0 20px 50px rgba(15, 23, 42, 0.22)",
-  },
-  simKicker: {
-    margin: 0,
-    color: "#fb7185",
-    fontSize: "12px",
-    fontWeight: 950,
-    letterSpacing: "0.06em",
-  },
-  simTitle: {
-    margin: "10px 0 0",
-    fontSize: "34px",
-    lineHeight: 1.15,
-    letterSpacing: "-0.06em",
-  },
-  simDesc: {
-    margin: "12px 0 0",
-    color: "#cbd5e1",
-    fontSize: "14px",
-    lineHeight: 1.55,
-    fontWeight: 700,
-  },
-  inputCard: {
-    background: "#ffffff",
-    borderRadius: "28px",
-    padding: "20px",
-    marginBottom: "14px",
-    boxShadow: "0 18px 46px rgba(15, 23, 42, 0.09)",
-  },
-  inputTitle: {
-    margin: "0 0 14px",
-    fontSize: "18px",
-    fontWeight: 950,
-    letterSpacing: "-0.04em",
-  },
-  inputRow: {
-    display: "block",
-    padding: "14px 0",
-    borderBottom: "1px solid #eef2f7",
-  },
-  inputLabel: {
-    display: "block",
-    fontSize: "13px",
-    color: "#64748b",
-    fontWeight: 900,
-    marginBottom: "8px",
-  },
-  inputBox: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-  },
-  input: {
-    flex: 1,
-    width: "100%",
-    border: "0",
-    outline: "none",
-    fontSize: "22px",
-    fontWeight: 950,
-    color: "#111827",
-    background: "transparent",
-  },
-  won: {
-    fontSize: "14px",
-    color: "#64748b",
-    fontWeight: 900,
-  },
-  resultPanel: {
-    background: "#ffffff",
-    borderRadius: "30px",
-    padding: "24px",
-    marginBottom: "14px",
-    boxShadow: "0 18px 46px rgba(15, 23, 42, 0.09)",
-    textAlign: "center",
-  },
-  resultSmall: {
-    margin: 0,
-    fontSize: "14px",
-    color: "#64748b",
-    fontWeight: 900,
-  },
-  runwayResult: {
-    marginTop: "8px",
-    display: "flex",
-    alignItems: "baseline",
-    justifyContent: "center",
-    gap: "8px",
-  },
-  partyEmoji: {
-    fontSize: "24px",
-  },
-  runwayMonths: {
-    fontSize: "48px",
-    color: "#111827",
-    letterSpacing: "-0.08em",
-  },
-  runwayDays: {
-    fontSize: "28px",
-    color: "#111827",
-    letterSpacing: "-0.06em",
-  },
-  totalDaysText: {
-    margin: "6px 0 0",
-    color: "#64748b",
-    fontSize: "13px",
-    fontWeight: 800,
-  },
-  gauge: {
-    margin: "22px auto 14px",
-    maxWidth: "260px",
-  },
-  gaugeArc: {
-    position: "relative",
-    height: "120px",
-    borderTopLeftRadius: "140px",
-    borderTopRightRadius: "140px",
-    background: "conic-gradient(from 220deg, #ef4444 0deg, #f59e0b 65deg, #22c55e 140deg, transparent 141deg)",
-    overflow: "hidden",
-  },
-  gaugeNeedle: {
-    position: "absolute",
-    width: "4px",
-    height: "78px",
-    background: "#111827",
-    bottom: "0",
-    left: "50%",
-    transformOrigin: "bottom center",
-    borderRadius: "999px",
-  },
-  gaugeLabels: {
-    display: "flex",
-    justifyContent: "space-between",
-    color: "#64748b",
-    fontSize: "12px",
-    fontWeight: 900,
-    marginTop: "4px",
-  },
-  summaryBox: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "10px",
-    marginTop: "16px",
-  },
-  summaryBox: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "10px",
-    marginTop: "16px",
-  },
-  tipBox: {
-    marginTop: "16px",
-    padding: "14px",
-    borderRadius: "20px",
-    background: "#f8fafc",
-    border: "1px solid #e2e8f0",
-    textAlign: "left",
-  },
-  simScoutCard: {
-    background: "#fff7ed",
-    border: "1px solid #fed7aa",
-    borderRadius: "26px",
-    padding: "18px",
-    marginBottom: "18px",
-  },
-  bottomNav: {
-    position: "fixed",
-    left: "50%",
-    bottom: "14px",
-    transform: "translateX(-50%)",
-    width: "calc(100% - 28px)",
-    maxWidth: "430px",
-    height: "64px",
-    borderRadius: "24px",
-    background: "rgba(255,255,255,0.92)",
-    border: "1px solid rgba(226,232,240,0.9)",
-    boxShadow: "0 18px 50px rgba(15, 23, 42, 0.18)",
-    backdropFilter: "blur(16px)",
-    display: "grid",
-    gridTemplateColumns: "repeat(5, 1fr)",
-    padding: "7px",
-    zIndex: 50,
-  },
-  navItem: {
-    border: "0",
-    background: "transparent",
-    color: "#94a3b8",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "3px",
-    fontWeight: 900,
-    cursor: "pointer",
-  },
-  navItemActive: {
-    border: "0",
-    borderRadius: "18px",
-    background: "#fff1f2",
-    color: "#f43f5e",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "3px",
     fontWeight: 900,
     cursor: "pointer",
   },

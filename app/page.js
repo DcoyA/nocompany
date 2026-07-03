@@ -28,11 +28,12 @@ export default function Home() {
   const [selectedScore, setSelectedScore] = useState(null);
   const [selectedRegion, setSelectedRegion] = useState("판교");
   const [loading, setLoading] = useState(false);
+  const [votedToday, setVotedToday] = useState(false);
 
   const fetchStats = async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const { data, error } = await supabase
       .from("moods")
       .select("score, region, created_at")
@@ -61,6 +62,11 @@ export default function Home() {
 
   useEffect(() => {
     fetchStats();
+
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const lastVoteDate = localStorage.getItem("lastVoteDate");
+
+    setVotedToday(lastVoteDate === todayKey);
   }, []);
 
   const distribution = useMemo(() => {
@@ -94,15 +100,13 @@ export default function Home() {
       grouped[item.region].count += 1;
     });
 
-    const result = Object.values(grouped)
+    return Object.values(grouped)
       .map((item) => ({
         name: item.name,
         score: Math.round(item.total / item.count),
         count: item.count,
       }))
       .sort((a, b) => b.score - a.score);
-
-    return result;
   }, [records]);
 
   const currentMood = useMemo(() => {
@@ -117,6 +121,15 @@ export default function Home() {
   const selectedMood = moods.find((mood) => mood.score === selectedScore);
 
   const vote = async (score) => {
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const lastVoteDate = localStorage.getItem("lastVoteDate");
+
+    if (lastVoteDate === todayKey) {
+      alert("오늘은 이미 참여했습니다. 내일 다시 참여해주세요.");
+      setVotedToday(true);
+      return;
+    }
+
     if (!selectedRegion) {
       alert("지역을 먼저 선택해주세요.");
       return;
@@ -137,6 +150,11 @@ export default function Home() {
       return;
     }
 
+    localStorage.setItem("lastVoteDate", todayKey);
+    localStorage.setItem("lastVoteRegion", selectedRegion);
+    localStorage.setItem("lastVoteScore", String(score));
+
+    setVotedToday(true);
     setSelectedScore(score);
     fetchStats();
   };
@@ -176,9 +194,9 @@ export default function Home() {
             </div>
 
             <div style={styles.trendBox}>
-              <span style={styles.trendLabel}>어제보다</span>
-              <strong style={styles.trendValue}>+6</strong>
-              <span style={styles.trendLine}>⌁⌁╱╲╱╲</span>
+              <span style={styles.trendLabel}>오늘 기준</span>
+              <strong style={styles.trendValue}>{count}</strong>
+              <span style={styles.trendLine}>명 참여</span>
             </div>
           </div>
 
@@ -211,6 +229,7 @@ export default function Home() {
               value={selectedRegion}
               onChange={(event) => setSelectedRegion(event.target.value)}
               style={styles.regionSelect}
+              disabled={votedToday}
             >
               {regionOptions.map((region) => (
                 <option key={region} value={region}>
@@ -219,6 +238,14 @@ export default function Home() {
               ))}
             </select>
           </div>
+
+          {votedToday && (
+            <div style={styles.doneBox}>
+              ✅ 오늘 참여 완료
+              <br />
+              <span style={styles.doneSub}>내일 다시 참여할 수 있어요.</span>
+            </div>
+          )}
 
           <div style={styles.moodGrid}>
             {moods.map((mood) => {
@@ -229,13 +256,14 @@ export default function Home() {
                   key={mood.score}
                   type="button"
                   onClick={() => vote(mood.score)}
-                  disabled={loading}
+                  disabled={loading || votedToday}
                   style={{
                     ...styles.moodButton,
                     background: isSelected ? mood.color : "#f8fafc",
                     color: isSelected ? "#ffffff" : "#111827",
                     borderColor: isSelected ? mood.color : "#eef2f7",
-                    opacity: loading ? 0.65 : 1,
+                    opacity: loading || votedToday ? 0.58 : 1,
+                    cursor: loading || votedToday ? "not-allowed" : "pointer",
                   }}
                 >
                   <span style={styles.moodEmoji}>{mood.emoji}</span>
@@ -265,9 +293,10 @@ export default function Home() {
             <div>
               <h2 style={styles.sectionTitle}>지역별 회사가기 싫음 지수</h2>
               <p style={styles.sectionSub}>
-                이제 투표 데이터가 쌓이면 지역 순위가 자동으로 바뀝니다.
+                오늘 투표 데이터가 쌓이면 지역 순위가 자동으로 바뀝니다.
               </p>
             </div>
+
             <button
               type="button"
               onClick={() => {
@@ -304,27 +333,29 @@ export default function Home() {
 
         <section style={styles.card}>
           <h2 style={styles.sectionTitle}>오늘의 TOP 5</h2>
-          <p style={styles.sectionSub}>실제 투표 기반 지역 순위</p>
+          <p style={styles.sectionSub}>오늘 실제 투표 기반 지역 순위</p>
 
           <div style={styles.rankList}>
             {(liveRegionRanking.length > 0 ? liveRegionRanking : regions.slice(0, 5))
               .slice(0, 5)
               .map((region, index) => {
-                const color = region.score >= 90
-                  ? "#ef4444"
-                  : region.score >= 80
-                  ? "#fb7185"
-                  : region.score >= 70
-                  ? "#f97316"
-                  : "#84cc16";
+                const color =
+                  region.score >= 90
+                    ? "#ef4444"
+                    : region.score >= 80
+                    ? "#fb7185"
+                    : region.score >= 70
+                    ? "#f97316"
+                    : "#84cc16";
 
-                const emoji = region.score >= 90
-                  ? "🤮"
-                  : region.score >= 80
-                  ? "😭"
-                  : region.score >= 70
-                  ? "😐"
-                  : "🙂";
+                const emoji =
+                  region.score >= 90
+                    ? "🤮"
+                    : region.score >= 80
+                    ? "😭"
+                    : region.score >= 70
+                    ? "😐"
+                    : "🙂";
 
                 return (
                   <div key={region.name} style={styles.rankItem}>
@@ -476,6 +507,7 @@ const styles = {
     marginTop: "4px",
     color: "#fb7185",
     fontSize: "13px",
+    fontWeight: 800,
   },
   distribution: {
     marginTop: "18px",
@@ -568,6 +600,21 @@ const styles = {
     fontWeight: 900,
     color: "#111827",
   },
+  doneBox: {
+    background: "#dcfce7",
+    color: "#166534",
+    padding: "12px",
+    borderRadius: "14px",
+    marginBottom: "14px",
+    fontWeight: 900,
+    textAlign: "center",
+    lineHeight: 1.45,
+  },
+  doneSub: {
+    fontSize: "12px",
+    fontWeight: 800,
+    color: "#15803d",
+  },
   moreButton: {
     border: "0",
     borderRadius: "999px",
@@ -593,7 +640,6 @@ const styles = {
     justifyContent: "center",
     gap: "7px",
     fontWeight: 900,
-    cursor: "pointer",
   },
   moodEmoji: {
     fontSize: "31px",

@@ -33,22 +33,55 @@ export default function BoardPage() {
   const [region, setRegion] = useState("판교");
   const [loading, setLoading] = useState(false);
   const [anonymousId, setAnonymousId] = useState("");
+  const [isBanned, setIsBanned] = useState(false);
+  const [banReason, setBanReason] = useState("");
 
   const placeholder = useMemo(() => {
     return placeholders[Math.floor(Math.random() * placeholders.length)];
   }, []);
 
   useEffect(() => {
-    let savedId = localStorage.getItem("anonymousUserId");
+    const init = async () => {
+      let savedId = localStorage.getItem("anonymousUserId");
 
-    if (!savedId) {
-      savedId = `worker_${Math.floor(1000 + Math.random() * 9000)}`;
-      localStorage.setItem("anonymousUserId", savedId);
+      if (!savedId) {
+        savedId = `worker_${Math.floor(1000 + Math.random() * 9000)}`;
+        localStorage.setItem("anonymousUserId", savedId);
+      }
+
+      setAnonymousId(savedId);
+
+      await checkBannedUser(savedId);
+      await fetchPosts();
+    };
+
+    init();
+  }, []);
+
+  const checkBannedUser = async (targetAnonymousId) => {
+    if (!targetAnonymousId) return false;
+
+    const { data, error } = await supabase
+      .from("banned_users")
+      .select("anonymous_id, reason")
+      .eq("anonymous_id", targetAnonymousId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("차단 여부 조회 실패:", error);
+      return false;
     }
 
-    setAnonymousId(savedId);
-    fetchPosts();
-  }, []);
+    if (data) {
+      setIsBanned(true);
+      setBanReason(data.reason || "운영정책 위반");
+      return true;
+    }
+
+    setIsBanned(false);
+    setBanReason("");
+    return false;
+  };
 
   const fetchPosts = async () => {
     const { data, error } = await supabase
@@ -67,6 +100,16 @@ export default function BoardPage() {
   };
 
   const submitPost = async () => {
+    const currentAnonymousId =
+      anonymousId || localStorage.getItem("anonymousUserId");
+
+    const banned = await checkBannedUser(currentAnonymousId);
+
+    if (banned) {
+      alert("운영정책 위반으로 글쓰기가 제한된 익명ID입니다.");
+      return;
+    }
+
     const trimmed = content.trim();
 
     if (!trimmed) {
@@ -84,7 +127,7 @@ export default function BoardPage() {
     const { error } = await supabase.from("posts").insert({
       content: trimmed,
       region,
-      anonymous_id: anonymousId || "anonymous",
+      anonymous_id: currentAnonymousId || "anonymous",
     });
 
     setLoading(false);
@@ -161,6 +204,26 @@ export default function BoardPage() {
     alert("신고가 접수되었습니다.");
   };
 
+  const blockUserLocally = (post) => {
+    if (!post.anonymous_id) return;
+
+    const ok = confirm("이 익명 사용자의 글을 내 화면에서 숨길까요?");
+
+    if (!ok) return;
+
+    const saved = localStorage.getItem("blockedAnonymousUsers");
+    const blockedUsers = saved ? JSON.parse(saved) : [];
+
+    if (!blockedUsers.includes(post.anonymous_id)) {
+      blockedUsers.push(post.anonymous_id);
+      localStorage.setItem("blockedAnonymousUsers", JSON.stringify(blockedUsers));
+    }
+
+    setPosts((prev) =>
+      prev.filter((item) => item.anonymous_id !== post.anonymous_id)
+    );
+  };
+
   const getTimeText = (dateString) => {
     const created = new Date(dateString);
     const now = new Date();
@@ -176,6 +239,19 @@ export default function BoardPage() {
     const diffDay = Math.floor(diffHour / 24);
     return `${diffDay}일 전`;
   };
+
+  const visiblePosts = useMemo(() => {
+    const saved = typeof window !== "undefined"
+      ? localStorage.getItem("blockedAnonymousUsers")
+      : null;
+
+    const blockedUsers = saved ? JSON.parse(saved) : [];
+
+    return posts.filter((post) => {
+      if (!post.anonymous_id) return true;
+      return !blockedUsers.includes(post.anonymous_id);
+    });
+  }, [posts]);
 
   const remaining = 120 - content.length;
 
@@ -204,9 +280,21 @@ export default function BoardPage() {
             </div>
 
             <span style={styles.anonymousBadge}>
-              {anonymousId ? anonymousId.replace("worker_", "익명직장인 ") : "익명"}
+              {anonymousId
+                ? anonymousId.replace("worker_", "익명직장인 ")
+                : "익명"}
             </span>
           </div>
+
+          {isBanned && (
+            <div style={styles.bannedBox}>
+              🚫 글쓰기 제한된 익명ID입니다.
+              <br />
+              <span style={styles.bannedSub}>
+                사유: {banReason || "운영정책 위반"}
+              </span>
+            </div>
+          )}
 
           <div style={styles.regionWrap}>
             <label style={styles.regionLabel}>업무지역</label>
@@ -214,6 +302,7 @@ export default function BoardPage() {
               value={region}
               onChange={(event) => setRegion(event.target.value)}
               style={styles.regionSelect}
+              disabled={isBanned}
             >
               {regionOptions.map((item) => (
                 <option key={item} value={item}>
@@ -226,9 +315,13 @@ export default function BoardPage() {
           <textarea
             value={content}
             onChange={(event) => setContent(event.target.value)}
-            placeholder={placeholder}
+            placeholder={isBanned ? "글쓰기가 제한된 익명ID입니다." : placeholder}
             maxLength={120}
-            style={styles.textarea}
+            style={{
+              ...styles.textarea,
+              opacity: isBanned ? 0.55 : 1,
+            }}
+            disabled={isBanned}
           />
 
           <div style={styles.writeFooter}>
@@ -244,13 +337,14 @@ export default function BoardPage() {
             <button
               type="button"
               onClick={submitPost}
-              disabled={loading}
+              disabled={loading || isBanned}
               style={{
                 ...styles.submitButton,
-                opacity: loading ? 0.6 : 1,
+                opacity: loading || isBanned ? 0.55 : 1,
+                cursor: loading || isBanned ? "not-allowed" : "pointer",
               }}
             >
-              익명으로 올리기
+              {isBanned ? "글쓰기 제한됨" : "익명으로 올리기"}
             </button>
           </div>
         </section>
@@ -270,7 +364,7 @@ export default function BoardPage() {
             </button>
           </div>
 
-          {posts.length === 0 ? (
+          {visiblePosts.length === 0 ? (
             <div style={styles.emptyBox}>
               아직 글이 없습니다.
               <br />
@@ -278,7 +372,7 @@ export default function BoardPage() {
             </div>
           ) : (
             <div style={styles.postList}>
-              {posts.map((post) => (
+              {visiblePosts.map((post) => (
                 <article key={post.id} style={styles.postItem}>
                   <div style={styles.postMeta}>
                     <span style={styles.writer}>
@@ -301,6 +395,14 @@ export default function BoardPage() {
                       style={styles.actionButton}
                     >
                       👍 {Number(post.likes || 0).toLocaleString()}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => blockUserLocally(post)}
+                      style={styles.blockButton}
+                    >
+                      🙈 차단
                     </button>
 
                     <button
@@ -401,6 +503,22 @@ const styles = {
     color: "#f43f5e",
     fontSize: "12px",
     fontWeight: 950,
+  },
+  bannedBox: {
+    background: "#fee2e2",
+    color: "#991b1b",
+    border: "1px solid #fecaca",
+    padding: "13px",
+    borderRadius: "18px",
+    marginBottom: "12px",
+    fontSize: "14px",
+    fontWeight: 950,
+    lineHeight: 1.45,
+    textAlign: "center",
+  },
+  bannedSub: {
+    fontSize: "12px",
+    fontWeight: 800,
   },
   regionWrap: {
     marginBottom: "12px",
@@ -545,6 +663,7 @@ const styles = {
   postActions: {
     display: "flex",
     gap: "8px",
+    flexWrap: "wrap",
   },
   actionButton: {
     border: "0",
@@ -554,6 +673,16 @@ const styles = {
     padding: "9px 12px",
     fontSize: "12px",
     fontWeight: 950,
+    cursor: "pointer",
+  },
+  blockButton: {
+    border: "0",
+    borderRadius: "999px",
+    background: "#ffffff",
+    color: "#475569",
+    padding: "9px 12px",
+    fontSize: "12px",
+    fontWeight: 900,
     cursor: "pointer",
   },
   reportButton: {

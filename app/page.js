@@ -38,9 +38,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
 
   const fetchStats = async () => {
-    const { data, error } = await supabase
-      .from("moods")
-      .select("score");
+    const { data, error } = await supabase.from("moods").select("score");
 
     if (error) {
       console.error(error);
@@ -67,11 +65,9 @@ export default function Home() {
   const vote = async (score) => {
     setLoading(true);
 
-    const { error } = await supabase
-      .from("moods")
-      .insert({
-        score,
-      });
+    const { error } = await supabase.from("moods").insert({
+      score,
+    });
 
     setLoading(false);
 
@@ -98,12 +94,11 @@ export default function Home() {
       <section style={styles.card}>
         <div style={styles.badge}>NO COMPANY</div>
 
-        <h1 style={styles.title}>
-          회사가기 싫을지도
-        </h1>
+        <h1 style={styles.title}>회사가기 싫을지도</h1>
 
         <p style={styles.subtitle}>
           오늘 대한민국 직장인들이 얼마나 회사 가기 싫은지
+          <br />
           익명으로 모아보는 실시간 퇴사욕구 지수
         </p>
 
@@ -116,25 +111,20 @@ export default function Home() {
           </strong>
 
           <p style={styles.scoreText}>
-            {average === null
-              ? "아직 투표가 없습니다"
-              : getMoodText(average)}
+            {average === null ? "아직 투표가 없습니다" : getMoodText(average)}
           </p>
 
-          <p style={styles.count}>
-            현재 {count.toLocaleString()}명 참여
-          </p>
+          <p style={styles.count}>현재 {count.toLocaleString()}명 참여</p>
         </div>
 
         <div style={styles.voteSection}>
-          <p style={styles.question}>
-            오늘 회사가기 싫은 정도는?
-          </p>
+          <p style={styles.question}>오늘 회사가기 싫은 정도는?</p>
 
           <div style={styles.buttons}>
             {moods.map((mood) => (
               <button
                 key={mood.score}
+                type="button"
                 onClick={() => vote(mood.score)}
                 disabled={loading}
                 style={{
@@ -151,9 +141,7 @@ export default function Home() {
 
         {selectedScore && (
           <div style={styles.resultBox}>
-            <p style={styles.resultTitle}>
-              투표 완료
-            </p>
+            <p style={styles.resultTitle}>투표 완료</p>
             <p style={styles.resultText}>
               당신의 오늘 퇴사욕구는 {selectedScore}점입니다.
             </p>
@@ -166,12 +154,8 @@ export default function Home() {
             <br />
             경제적 자유를 위한 우량주 탐색도 필요합니다.
           </p>
-        
-          omedia.win"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={styles.linkButton}
-          >
+
+          https://hellomedia.win
             우량주 스카우터 보기
           </a>
         </div>
@@ -183,14 +167,12 @@ export default function Home() {
 const styles = {
   page: {
     minHeight: "100vh",
-    background:
-      "linear-gradient(180deg, #fff1f2 0%, #f8fafc 100%)",
+    background: "linear-gradient(180deg, #fff1f2 0%, #f8fafc 100%)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     padding: "24px",
-    fontFamily:
-      "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   card: {
     width: "100%",

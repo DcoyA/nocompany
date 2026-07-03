@@ -5,8 +5,8 @@ export default function BottomNav({ active = "home" }) {
     { key: "home", label: "홈", icon: "⌂", href: "/" },
     { key: "rankings", label: "지역순위", icon: "◎", href: "/rankings" },
     { key: "simulator", label: "퇴사", icon: "▣", href: "/simulator" },
-    { key: "stats", label: "통계", icon: "▥", href: "/" },
-    { key: "my", label: "마이", icon: "○", href: "/" },
+    { key: "stats", label: "통계", icon: "▥", href: "/stats" },
+    { key: "my", label: "마이", icon: "○", href: "/my" },
   ];
 
   return (

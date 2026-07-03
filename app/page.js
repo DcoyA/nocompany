@@ -6,17 +6,33 @@ import { moods, regions, mapPins } from "../lib/data";
 import AppHeader from "../components/AppHeader";
 import BottomNav from "../components/BottomNav";
 
+const regionOptions = [
+  "판교",
+  "여의도",
+  "강남",
+  "가산",
+  "성수",
+  "광화문",
+  "마곡",
+  "구로",
+  "을지로",
+  "잠실",
+  "분당",
+  "기타",
+];
+
 export default function Home() {
   const [records, setRecords] = useState([]);
   const [average, setAverage] = useState(null);
   const [count, setCount] = useState(0);
   const [selectedScore, setSelectedScore] = useState(null);
+  const [selectedRegion, setSelectedRegion] = useState("판교");
   const [loading, setLoading] = useState(false);
 
   const fetchStats = async () => {
     const { data, error } = await supabase
       .from("moods")
-      .select("score, created_at")
+      .select("score, region, created_at")
       .order("created_at", { ascending: false })
       .limit(1000);
 
@@ -47,13 +63,43 @@ export default function Home() {
   const distribution = useMemo(() => {
     return moods.map((mood) => {
       const moodCount = records.filter((item) => item.score === mood.score).length;
-      const percent = records.length === 0 ? 0 : Math.round((moodCount / records.length) * 100);
+      const percent =
+        records.length === 0 ? 0 : Math.round((moodCount / records.length) * 100);
 
       return {
         ...mood,
         percent,
       };
     });
+  }, [records]);
+
+  const liveRegionRanking = useMemo(() => {
+    const grouped = {};
+
+    records.forEach((item) => {
+      if (!item.region) return;
+
+      if (!grouped[item.region]) {
+        grouped[item.region] = {
+          name: item.region,
+          total: 0,
+          count: 0,
+        };
+      }
+
+      grouped[item.region].total += item.score;
+      grouped[item.region].count += 1;
+    });
+
+    const result = Object.values(grouped)
+      .map((item) => ({
+        name: item.name,
+        score: Math.round(item.total / item.count),
+        count: item.count,
+      }))
+      .sort((a, b) => b.score - a.score);
+
+    return result;
   }, [records]);
 
   const currentMood = useMemo(() => {
@@ -68,9 +114,17 @@ export default function Home() {
   const selectedMood = moods.find((mood) => mood.score === selectedScore);
 
   const vote = async (score) => {
+    if (!selectedRegion) {
+      alert("지역을 먼저 선택해주세요.");
+      return;
+    }
+
     setLoading(true);
 
-    const { error } = await supabase.from("moods").insert({ score });
+    const { error } = await supabase.from("moods").insert({
+      score,
+      region: selectedRegion,
+    });
 
     setLoading(false);
 
@@ -144,7 +198,24 @@ export default function Home() {
 
         <section style={styles.card}>
           <h2 style={styles.sectionTitle}>오늘 내 상태 입력</h2>
-          <p style={styles.sectionSub}>3초만에 참여하고 전국 직장인들과 함께해요.</p>
+          <p style={styles.sectionSub}>
+            지역을 선택하고 오늘 회사가기 싫은 정도를 눌러주세요.
+          </p>
+
+          <div style={styles.regionWrap}>
+            <label style={styles.regionLabel}>내 업무지역</label>
+            <select
+              value={selectedRegion}
+              onChange={(event) => setSelectedRegion(event.target.value)}
+              style={styles.regionSelect}
+            >
+              {regionOptions.map((region) => (
+                <option key={region} value={region}>
+                  {region}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div style={styles.moodGrid}>
             {moods.map((mood) => {
@@ -175,7 +246,9 @@ export default function Home() {
             <div style={styles.resultBox}>
               <div style={styles.resultEmoji}>{selectedMood.emoji}</div>
               <div style={styles.resultContent}>
-                <p style={styles.resultTitle}>{selectedMood.label}</p>
+                <p style={styles.resultTitle}>
+                  {selectedRegion} · {selectedMood.label}
+                </p>
                 <p style={styles.resultText}>
                   당신의 오늘 퇴사욕구는 {selectedScore}점입니다.
                 </p>
@@ -188,7 +261,9 @@ export default function Home() {
           <div style={styles.sectionHeader}>
             <div>
               <h2 style={styles.sectionTitle}>지역별 회사가기 싫음 지수</h2>
-              <p style={styles.sectionSub}>지도 API 붙이기 전 임시 지역 대시보드</p>
+              <p style={styles.sectionSub}>
+                이제 투표 데이터가 쌓이면 지역 순위가 자동으로 바뀝니다.
+              </p>
             </div>
             <button
               type="button"
@@ -226,31 +301,51 @@ export default function Home() {
 
         <section style={styles.card}>
           <h2 style={styles.sectionTitle}>오늘의 TOP 5</h2>
-          <p style={styles.sectionSub}>퇴사욕구 높은 업무지구</p>
+          <p style={styles.sectionSub}>실제 투표 기반 지역 순위</p>
 
           <div style={styles.rankList}>
-            {regions.slice(0, 5).map((region, index) => (
-              <div key={region.name} style={styles.rankItem}>
-                <div style={styles.rankLeft}>
-                  <span style={styles.rankNo}>{index + 1}</span>
-                  <span style={styles.rankEmoji}>{region.emoji}</span>
-                  <strong style={styles.rankName}>{region.name}</strong>
-                </div>
+            {(liveRegionRanking.length > 0 ? liveRegionRanking : regions.slice(0, 5))
+              .slice(0, 5)
+              .map((region, index) => {
+                const color = region.score >= 90
+                  ? "#ef4444"
+                  : region.score >= 80
+                  ? "#fb7185"
+                  : region.score >= 70
+                  ? "#f97316"
+                  : "#84cc16";
 
-                <div style={styles.rankRight}>
-                  <div style={styles.rankBarTrack}>
-                    <div
-                      style={{
-                        ...styles.rankBar,
-                        width: `${region.score}%`,
-                        background: region.color,
-                      }}
-                    />
+                const emoji = region.score >= 90
+                  ? "🤮"
+                  : region.score >= 80
+                  ? "😭"
+                  : region.score >= 70
+                  ? "😐"
+                  : "🙂";
+
+                return (
+                  <div key={region.name} style={styles.rankItem}>
+                    <div style={styles.rankLeft}>
+                      <span style={styles.rankNo}>{index + 1}</span>
+                      <span style={styles.rankEmoji}>{emoji}</span>
+                      <strong style={styles.rankName}>{region.name}</strong>
+                    </div>
+
+                    <div style={styles.rankRight}>
+                      <div style={styles.rankBarTrack}>
+                        <div
+                          style={{
+                            ...styles.rankBar,
+                            width: `${region.score}%`,
+                            background: color,
+                          }}
+                        />
+                      </div>
+                      <strong style={styles.rankScore}>{region.score}점</strong>
+                    </div>
                   </div>
-                  <strong style={styles.rankScore}>{region.score}점</strong>
-                </div>
-              </div>
-            ))}
+                );
+              })}
           </div>
         </section>
 
@@ -294,7 +389,8 @@ export default function Home() {
 const styles = {
   page: {
     minHeight: "100vh",
-    background: "radial-gradient(circle at top left, #ffe4e6 0, transparent 28%), linear-gradient(180deg, #fff7f8 0%, #eef2f7 100%)",
+    background:
+      "radial-gradient(circle at top left, #ffe4e6 0, transparent 28%), linear-gradient(180deg, #fff7f8 0%, #eef2f7 100%)",
     display: "flex",
     justifyContent: "center",
     padding: "18px",
@@ -443,6 +539,32 @@ const styles = {
     color: "#64748b",
     fontWeight: 700,
   },
+  regionWrap: {
+    marginBottom: "14px",
+    padding: "14px",
+    borderRadius: "20px",
+    background: "#f8fafc",
+    border: "1px solid #eef2f7",
+  },
+  regionLabel: {
+    display: "block",
+    marginBottom: "8px",
+    fontSize: "12px",
+    color: "#64748b",
+    fontWeight: 900,
+  },
+  regionSelect: {
+    width: "100%",
+    height: "46px",
+    border: "0",
+    outline: "none",
+    borderRadius: "15px",
+    background: "#ffffff",
+    padding: "0 14px",
+    fontSize: "16px",
+    fontWeight: 900,
+    color: "#111827",
+  },
   moreButton: {
     border: "0",
     borderRadius: "999px",
@@ -515,7 +637,8 @@ const styles = {
     height: "250px",
     borderRadius: "26px",
     overflow: "hidden",
-    background: "linear-gradient(145deg, #dbeafe 0%, #ecfeff 42%, #fef3c7 100%)",
+    background:
+      "linear-gradient(145deg, #dbeafe 0%, #ecfeff 42%, #fef3c7 100%)",
     border: "1px solid #e2e8f0",
   },
   mapBgCircleOne: {

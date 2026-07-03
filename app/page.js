@@ -166,8 +166,12 @@ export default function Home() {
             <br />
             경제적 자유를 위한 우량주 탐색도 필요합니다.
           </p>
-
-          https://hellomedia.win
+        
+          omedia.win"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={styles.linkButton}
+          >
             우량주 스카우터 보기
           </a>
         </div>

@@ -5,10 +5,10 @@ import AppHeader from "../../components/AppHeader";
 import BottomNav from "../../components/BottomNav";
 
 export default function SimulatorPage() {
-  const [salary, setSalary] = useState(3000000);
-  const [cash, setCash] = useState(20000000);
-  const [livingCost, setLivingCost] = useState(2200000);
-  const [debtCost, setDebtCost] = useState(300000);
+  const [salary, setSalary] = useState(0);
+  const [cash, setCash] = useState(0);
+  const [livingCost, setLivingCost] = useState(0);
+  const [debtCost, setDebtCost] = useState(0);
 
   const result = useMemo(() => {
     const monthlyCost = Number(livingCost || 0) + Number(debtCost || 0);
@@ -121,14 +121,26 @@ export default function SimulatorPage() {
 }
 
 function MoneyInput({ label, value, onChange }) {
+  const formatNumber = (number) => {
+    if (number === null || number === undefined || number === "") return "";
+    return Number(number).toLocaleString();
+  };
+
+  const parseNumber = (text) => {
+    const onlyNumber = text.replace(/[^0-9]/g, "");
+    return Number(onlyNumber || 0);
+  };
+
   return (
     <label style={styles.inputRow}>
       <span style={styles.inputLabel}>{label}</span>
+
       <div style={styles.inputBox}>
         <input
-          type="number"
-          value={value}
-          onChange={(event) => onChange(Number(event.target.value))}
+          type="text"
+          inputMode="numeric"
+          value={formatNumber(value)}
+          onChange={(event) => onChange(parseNumber(event.target.value))}
           style={styles.input}
         />
         <span style={styles.won}>원</span>
